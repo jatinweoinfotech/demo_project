@@ -67,14 +67,7 @@ module.exports = {
                                 .destroy()
                                 .then(() => resolutionFunc("comment deleted successfully")
                                 )
-                                .catch(error => res.status(500).json(
-                                    ResponseFormat.error(
-                                        error,
-                                        "someting went wrong when delete the user",
-                                        500,
-                                        "error"
-                                    )
-                                ));
+                                .catch(error => rejectionFunc(error));
                         }
                     });
             } else {
