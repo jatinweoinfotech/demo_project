@@ -1,30 +1,45 @@
 const comment = require('../models').Comment;
 
 const ResponseFormat = require('../core').ResponseFormat;
+const { sequelize } = require('../models');
 module.exports = {
     create(req, res) {
         return new Promise(async (resolutionFunc, rejectionFunc) => {
             try {
                 if (req.body.title && req.params.userId) {
-                    const comments = await comment.create({
-                        title: req.body.title,
-                        userId: req.params.userId
+                    sequelize.transaction().then(t => {
+                        comment.create({
+                            title: req.body.title,
+                            userId: req.params.userId
+                        }, { transaction: t }).then(comments => {
+                            t.commit();
+                            resolutionFunc(comments)
+                        }).catch((err) => {
+                            t.rollback();
+                            rejectionFunc(error)
+                        });
                     })
-                    resolutionFunc(comments)
                 } else {
+                    t.rollback();
                     rejectionFunc("required parameter missing")
                 }
             } catch (error) {
+                console.log("error", error)
                 rejectionFunc(error)
             }
         })
     },
     list(req, res) {
         return new Promise(async (resolutionFunc, rejectionFunc) => {
-            comment.findAll({}).then((comments) => {
-                resolutionFunc(comments)
-            }, (error) => {
-                rejectionFunc(error)
+            sequelize.transaction().then(t => {
+
+                comment.findAll({}, { transaction: t }).then(comments => {
+                    t.commit();
+                    resolutionFunc(comments)
+                }).catch((err) => {
+                    t.rollback();
+                    rejectionFunc(err)
+                });
             });
         })
     },
@@ -67,7 +82,14 @@ module.exports = {
                                 .destroy()
                                 .then(() => resolutionFunc("comment deleted successfully")
                                 )
-                                .catch(error => rejectionFunc(error));
+                                .catch(error => res.status(500).json(
+                                    ResponseFormat.error(
+                                        error,
+                                        "someting went wrong when delete the user",
+                                        500,
+                                        "error"
+                                    )
+                                ));
                         }
                     });
             } else {
